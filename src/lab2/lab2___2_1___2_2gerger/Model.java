@@ -1,4 +1,4 @@
-package lab2.lab2___2_1___2_2;
+package lab2.lab2___2_1___2_2gerger;
 
 public class Model {
     private double tnext;

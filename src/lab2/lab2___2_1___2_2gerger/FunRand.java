@@ -1,4 +1,4 @@
-package lab2.lab2___2_1___2_2;
+package lab2.lab2___2_1___2_2gerger;
 
 import java.util.Random;
 
