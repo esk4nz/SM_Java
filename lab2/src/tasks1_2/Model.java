@@ -8,6 +8,7 @@ public class Model {
     private int numCreate, numProcess, failure;
     private int state, maxqueue, queue;
     private int nextEvent;
+    private double busyTime = 0.0;
 
     public Model(double delay0, double delay1){
         delayCreate = delay0;
@@ -36,6 +37,12 @@ public class Model {
                 tnext = t1;
                 nextEvent = 1;
             }
+
+            double delta = tnext - tcurr;
+            if(state == 1) {
+                busyTime += delta;
+            }
+
             tcurr = tnext;
             switch(nextEvent){
                 case 0: event0();
@@ -50,6 +57,8 @@ public class Model {
 
     public void printStatistic(){
         System.out.println(" numCreate= " + numCreate+" numProcess= "+numProcess+" failure = "+failure);
+        double meanLoad = busyTime / tcurr;
+        System.out.println("Average device load: " + meanLoad);
     }
 
     public void printInfo(){
@@ -68,8 +77,6 @@ public class Model {
             else
                 failure++;
         }
-
-
     }
     public void event1(){
         t1 = Double.MAX_VALUE;
