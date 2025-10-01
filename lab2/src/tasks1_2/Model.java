@@ -1,99 +1,65 @@
 package tasks1_2;
 
+import java.util.ArrayList;
+
 public class Model {
-    private double tnext;
-    private double tcurr;
-    private double t0, t1;
-    private double delayCreate, delayProcess;
-    private int numCreate, numProcess, failure;
-    private int state, maxqueue, queue;
-    private int nextEvent;
-    private double busyTime = 0.0;
+    private ArrayList<Element> list;
+    private double tnext, tcurr;
+    private int event;
 
-    public Model(double delay0, double delay1){
-        delayCreate = delay0;
-        delayProcess = delay1;
-        tnext=0.0;
-        tcurr = tnext;
-        t0=tcurr; t1=Double.MAX_VALUE;
-        maxqueue=0;
-    }
-    public Model(double delay0, double delay1, int maxQ){
-        delayCreate = delay0;
-        delayProcess = delay1;
-        tnext=0.0;
-        tcurr = tnext;
-        t0=tcurr; t1=Double.MAX_VALUE;
-        maxqueue=maxQ;
+    public Model(ArrayList<Element> elements) {
+        list = elements;
+        event = 0;
+        tcurr = 0.0;
     }
 
-    public void simulate(double timeModeling){
-        while(tcurr<timeModeling){
-
-            tnext = t0;
-            nextEvent = 0;
-
-            if(t1<tnext){
-                tnext = t1;
-                nextEvent = 1;
+    public void simulate(double time) {
+        while (tcurr < time) {
+            tnext = Double.MAX_VALUE;
+            for (Element e : list) {
+                if (e.getTnext() < tnext) {
+                    tnext = e.getTnext();
+                    event = e.getId();
+                }
             }
-
-            double delta = tnext - tcurr;
-            if(state == 1) {
-                busyTime += delta;
+            System.out.println("\nIt's time for event in " +
+                    list.get(event).getName() +
+                    ", time = " + tnext);
+            for (Element e : list) {
+                e.doStatistics(tnext - tcurr);
             }
-
             tcurr = tnext;
-            switch(nextEvent){
-                case 0: event0();
-                    break;
-                case 1: event1();
-
+            for (Element e : list) {
+                e.setTcurr(tcurr);
+            }
+            list.get(event).outAct();
+            for (Element e : list) {
+                if (e.getTnext() == tcurr) {
+                    e.outAct();
+                }
             }
             printInfo();
         }
-        printStatistic();
+        printResult();
     }
-
-    public void printStatistic(){
-        System.out.println(" numCreate= " + numCreate+" numProcess= "+numProcess+" failure = "+failure);
-        double meanLoad = busyTime / tcurr;
-        System.out.println("Average device load: " + meanLoad);
-    }
-
-    public void printInfo(){
-        System.out.println(" t= " + tcurr+" state = "+state+" queue = "+queue);
-    }
-
-    public void event0(){
-        t0 = tcurr+getDelayOfCreate();
-        numCreate++;
-        if(state==0){
-            state = 1;
-            t1 = tcurr+getDelayOfProcess();
-        } else {
-            if(queue<maxqueue)
-                queue++;
-            else
-                failure++;
+    public void printInfo() {
+        for (Element e : list) {
+            e.printInfo();
         }
     }
-    public void event1(){
-        t1 = Double.MAX_VALUE;
-        state=0;
-        if(queue>0){
-            queue--;
-            state=1;
-            t1 = tcurr+getDelayOfProcess();
+    public void printResult() {
+        System.out.println("\n-------------RESULTS-------------");
+        for (Element e : list) {
+            e.printResult();
+            if (e instanceof Process) {
+                Process p = (Process) e;
+                System.out.println("mean length of queue = " +
+                        p.getMeanQueue() / tcurr
+                        + "\nfailure probability = " +
+                        p.getFailure() / (double) p.getQuantity()
+                        + "\naverage load = " +
+                        p.getBusyTime() / tcurr);
+            }
         }
-        numProcess++;
-    }
-
-    private double getDelayOfCreate() {
-        return FunRand.Exp(delayCreate);
-    }
-
-    private double getDelayOfProcess() {
-        return FunRand.Exp(delayProcess);
     }
 }
