@@ -55,7 +55,6 @@ public class Process extends Element {
         return super.getNextElement();
     }
 
-    // --- Multi-server logic (task5) ---
     public void setServers(int servers) {
         if (servers <= 0) throw new IllegalArgumentException("servers must be >= 1");
         this.servers = servers;
@@ -89,11 +88,9 @@ public class Process extends Element {
         finishTimes[idx] = Double.MAX_VALUE;
         busy--;
 
-        // Route finished request
         Element next = chooseNext();
         if (next != null) next.inAct();
 
-        // Start new from queue while there are free servers
         while (queue > 0 && busy < servers) {
             queue--;
             startServiceNow();
