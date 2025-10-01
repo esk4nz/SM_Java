@@ -55,10 +55,11 @@ public class Model {
             e.printResult();
             if (e instanceof Process) {
                 Process p = (Process) e;
+                double attempts = p.getQuantity() + p.getFailure();
                 System.out.println("mean length of queue = " +
                         p.getMeanQueue() / tcurr
                         + "\nfailure probability = " +
-                        p.getFailure() / (double) p.getQuantity()
+                        (attempts == 0 ? 0.0 : p.getFailure() / attempts)
                         + "\naverage load = " +
                         p.getAverageLoad(tcurr));
             }
