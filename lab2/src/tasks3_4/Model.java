@@ -1,4 +1,6 @@
-package tasks1_2;
+package tasks3_4;
+
+import tasks1_2.Element;
 
 import java.util.ArrayList;
 
@@ -42,13 +44,11 @@ public class Model {
         }
         printResult();
     }
-
     public void printInfo() {
         for (Element e : list) {
             e.printInfo();
         }
     }
-
     public void printResult() {
         System.out.println("\n-------------RESULTS-------------");
         for (Element e : list) {

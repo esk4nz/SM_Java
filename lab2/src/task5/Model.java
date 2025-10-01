@@ -1,4 +1,6 @@
-package tasks1_2;
+package task5;
+
+import tasks1_2.*;
 
 import java.util.ArrayList;
 
@@ -42,13 +44,11 @@ public class Model {
         }
         printResult();
     }
-
     public void printInfo() {
         for (Element e : list) {
             e.printInfo();
         }
     }
-
     public void printResult() {
         System.out.println("\n-------------RESULTS-------------");
         for (Element e : list) {
@@ -61,7 +61,7 @@ public class Model {
                         + "\nfailure probability = " +
                         (attempts == 0 ? 0.0 : p.getFailure() / attempts)
                         + "\naverage load = " +
-                        p.getBusyTime() / tcurr);
+                        p.getAverageLoad(tcurr));
             }
         }
     }

@@ -1,4 +1,6 @@
-package tasks1_2;
+package task6;
+
+import tasks1_2.*;
 
 import java.util.ArrayList;
 
@@ -53,15 +55,15 @@ public class Model {
         System.out.println("\n-------------RESULTS-------------");
         for (Element e : list) {
             e.printResult();
-            if (e instanceof Process) {
-                Process p = (Process) e;
+            if (e instanceof task6.Process) {
+                task6.Process p = (task6.Process) e;
                 double attempts = p.getQuantity() + p.getFailure();
                 System.out.println("mean length of queue = " +
                         p.getMeanQueue() / tcurr
                         + "\nfailure probability = " +
                         (attempts == 0 ? 0.0 : p.getFailure() / attempts)
                         + "\naverage load = " +
-                        p.getBusyTime() / tcurr);
+                        p.getAverageLoad(tcurr));
             }
         }
     }
