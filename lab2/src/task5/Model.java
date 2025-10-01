@@ -60,7 +60,7 @@ public class Model {
                         + "\nfailure probability = " +
                         p.getFailure() / (double) p.getQuantity()
                         + "\naverage load = " +
-                        p.getBusyTime() / tcurr);
+                        p.getAverageLoad(tcurr));
             }
         }
     }
