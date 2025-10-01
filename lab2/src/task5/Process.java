@@ -50,7 +50,6 @@ public class Process extends Element {
     public void outAct() {
         super.outAct();
         int idx = indexOfMinFinishTime();
-        // Тепер завжди буде коректний індекс!
         finishTimes[idx] = Double.MAX_VALUE;
         busy--;
         if (super.getNextElement() != null) {
@@ -65,7 +64,6 @@ public class Process extends Element {
 
     private void startServiceNow() {
         int freeIdx = indexOfFreeServer();
-        // В цій моделі після busy < servers це завжди коректний індекс!
         busy++;
         double compTime = super.getTcurr() + super.getDelay();
         finishTimes[freeIdx] = compTime;
