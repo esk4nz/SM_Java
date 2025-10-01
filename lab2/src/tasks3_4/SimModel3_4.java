@@ -1,5 +1,7 @@
 package tasks3_4;
-import tasks1_2.*;
+
+import tasks1_2.Create;
+import tasks1_2.Element;
 
 import java.util.ArrayList;
 
