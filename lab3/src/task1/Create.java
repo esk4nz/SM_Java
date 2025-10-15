@@ -20,7 +20,6 @@ public class Create extends Element {
         setTnext(0.0);
     }
 
-    // імовірнісний режим (сума = 1.0)
     public void addNextElement(Element next, double probability) {
         if (next == null) throw new IllegalArgumentException("next element cannot be null");
         if (probability < 0) throw new IllegalArgumentException("probability must be >= 0");
@@ -31,7 +30,6 @@ public class Create extends Element {
         nextPriors.add(null);
     }
 
-    // пріоритети: більше = вищий
     public void addPriorityRoute(Element next, int priority) {
         if (next == null) throw new IllegalArgumentException("next element cannot be null");
         if (modeProb) throw new IllegalStateException("Cannot mix priority with probability mode in Create");
@@ -55,7 +53,7 @@ public class Create extends Element {
 
         Element target = chooseTarget();
         if (target == null) target = getNextElement();
-        if (target != null) target.inAct(); // Create не блокується: target сам порахує failure
+        if (target != null) target.inAct();
     }
 
     private Element chooseTarget() {
@@ -64,7 +62,6 @@ public class Create extends Element {
         if (modePrior && modeProb) throw new IllegalStateException("Create cannot have both priorities and probabilities");
 
         if (modePrior) {
-            // беремо найвищий доступний; якщо нема — найвищий взагалі (failure порахується у target)
             Integer bestLevel = null;
             Element bestEl = null;
             for (int i = 0; i < n; i++) {

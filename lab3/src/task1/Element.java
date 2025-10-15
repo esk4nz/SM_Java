@@ -90,12 +90,9 @@ public class Element {
     public void setName(String name) { this.name = name; }
     public void doStatistics(double delta){ }
 
-    // чи може елемент прийняти клієнта зараз (Process перевизначає)
     public boolean canAccept() { return true; }
 
-    // хук: джерело зробило drop саме в цей target
     public void onDropFrom(Element from) { }
 
-    // для циклу розблокування (Process перевизначає)
     public boolean tryUnblock() { return false; }
 }
