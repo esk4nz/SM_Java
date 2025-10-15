@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.TreeSet;
 
 public class Process extends Element {
-    // Черга/відмови (атрибутуються ЦІЛІ, у яку не потрапили)
+    // Черга/відмови (атрибуція у ЦІЛЬ)
     private int queue = 0;
     private int maxqueue = Integer.MAX_VALUE;
     private int failure = 0;
@@ -16,28 +16,32 @@ public class Process extends Element {
     private int busy = 0;
     private double[] finishTimes = new double[1];
 
-    // Блокування на виході
+    // Блокування
     private boolean[] blocked;
     private Element[] blockedTarget;
     private int blockCount = 0;
     private double blockedTime = 0.0;
-    private boolean blockOnFull = true; // true=чекати, false=дропнути
 
-    // Втрати на виході цього процесу (джерела)
+    // Дефолтна політика для маршрутів (для сумісності зі старим setBlockOnFull)
+    private boolean defaultRouteBlockOnFull = true; // true=BLOCK, false=DROP
+
+    // Втрати джерела при DROP
     private int routeLoss = 0;
 
     // Статистика
     private double meanQueue = 0.0;
     private double busyTime = 0.0;
 
-    // Роутинг
-    private final List<Element> nextElements = new ArrayList<>();
-    private final List<Double> nextProbs = new ArrayList<>();
-    private boolean useProbRouting = false;
-
+    // Роутинг: або пріоритети, або ймовірності
     private final List<Element> prioElements = new ArrayList<>();
-    private final List<Integer> prioValues  = new ArrayList<>();
+    private final List<Integer> prioValues   = new ArrayList<>();
+    private final List<Boolean> prioBlockOnFull = new ArrayList<>();
     private boolean usePriorityRouting = false;
+
+    private final List<Element> nextElements = new ArrayList<>();
+    private final List<Double>  nextProbs    = new ArrayList<>();
+    private final List<Boolean> nextBlockOnFull = new ArrayList<>();
+    private boolean useProbRouting = false;
 
     public Process(String nameOfElement, double delay) {
         super(nameOfElement, delay);
@@ -45,7 +49,7 @@ public class Process extends Element {
         super.setTnext(Double.MAX_VALUE);
     }
 
-    // -------------------- НАЛАШТУВАННЯ --------------------
+    // -------------------- Конфіг --------------------
     public void setServers(int servers) {
         if (servers <= 0) throw new IllegalArgumentException("servers must be >= 1");
         this.servers = servers;
@@ -61,38 +65,43 @@ public class Process extends Element {
         super.setState(0);
         super.setTnext(Double.MAX_VALUE);
     }
-    public void setBlockOnFull(boolean blockOnFull) { this.blockOnFull = blockOnFull; }
+
+    // Залишено для сумісності: встановлює дефолтну політику для маршрутів без явної policy
+    public void setBlockOnFull(boolean blockOnFull) {
+        this.defaultRouteBlockOnFull = blockOnFull;
+    }
+
     public int  getServers() { return servers; }
     public int  getBusy()    { return busy; }
 
-    // -------------------- РОУТИНГ --------------------
-    public void addNextElement(Element next, double probability) {
+    // -------------------- Роутинг API --------------------
+    // Пріоритет: більше = вищий; явна політика для маршруту
+    public void addPriorityRoute(Element next, int priority, Boolean blockOnFullPerRoute) {
+        if (useProbRouting) throw new IllegalStateException("Cannot mix priority and probability routing");
+        if (next == null) throw new IllegalArgumentException("next element cannot be null");
+        prioElements.add(next);
+        prioValues.add(priority);
+        prioBlockOnFull.add(blockOnFullPerRoute != null ? blockOnFullPerRoute : defaultRouteBlockOnFull);
+        usePriorityRouting = true;
+    }
+    // Back-compat: без політики → використовуємо дефолтну
+    public void addPriorityRoute(Element next, int priority) {
+        addPriorityRoute(next, priority, null);
+    }
+
+    // Імовірнісний: сума = 1.0; явна політика для маршруту
+    public void addNextElement(Element next, double probability, Boolean blockOnFullPerRoute) {
         if (usePriorityRouting) throw new IllegalStateException("Cannot mix priority and probability routing");
         if (next == null) throw new IllegalArgumentException("next element cannot be null");
         if (probability < 0 || probability > 1) throw new IllegalArgumentException("probability must be in [0,1]");
         nextElements.add(next);
         nextProbs.add(probability);
+        nextBlockOnFull.add(blockOnFullPerRoute != null ? blockOnFullPerRoute : defaultRouteBlockOnFull);
         useProbRouting = true;
     }
-
-    public void addPriorityRoute(Element next, int priority) {
-        if (useProbRouting) throw new IllegalStateException("Cannot mix priority and probability routing");
-        if (next == null) throw new IllegalArgumentException("next element cannot be null");
-        prioElements.add(next);
-        prioValues.add(priority);
-        usePriorityRouting = true;
-    }
-
-    private Element chooseNextProbability() {
-        double sum = 0.0;
-        for (double p : nextProbs) sum += p;
-        if (Math.abs(sum - 1.0) > 1e-9) throw new IllegalStateException("Sum of routing probabilities must be 1.0");
-        double r = Math.random(), acc = 0.0;
-        for (int i = 0; i < nextElements.size() - 1; i++) {
-            acc += nextProbs.get(i);
-            if (r < acc) return nextElements.get(i);
-        }
-        return nextElements.get(nextElements.size() - 1);
+    // Back-compat: без політики → використовуємо дефолтну
+    public void addNextElement(Element next, double probability) {
+        addNextElement(next, probability, null);
     }
 
     private boolean hasAnyRoute() {
@@ -101,14 +110,14 @@ public class Process extends Element {
         return getNextElement() != null;
     }
 
-    // -------------------- ПОДІЇ --------------------
+    // -------------------- Події --------------------
     @Override
     public void inAct() {
         if (busy < servers) {
             startServiceNow();
         } else {
             if (queue < maxqueue) queue++;
-            else failure++; // відмова зараховується ЦІЛІ, у яку намагаємось увійти
+            else failure++; // відмова на вході у ЦІЛЬ
         }
     }
 
@@ -119,7 +128,7 @@ public class Process extends Element {
 
         super.outAct();
 
-        // SINK: немає виходів — випускаємо клієнта
+        // SINK: немає виходів
         if (!hasAnyRoute()) {
             finishTimes[idx] = Double.MAX_VALUE;
             busy--;
@@ -129,19 +138,17 @@ public class Process extends Element {
         }
 
         Element target = null;
+        boolean policyBlock = defaultRouteBlockOnFull; // на випадок single nextElement
         boolean routeAvailable = true;
 
         if (usePriorityRouting && !prioElements.isEmpty()) {
-            // ПРІОРИТЕТИ:
-            // - йдемо від найвищого до найнижчого
-            // - якщо знайшли доступний — беремо його
-            // - якщо жоден не доступний — fallback = ОСТАННІЙ перевірений (найнижчий пріоритет),
-            //   і саме ЙОМУ атрибутуємо блок/дроп (щоб "резервний" отримував свої фейли)
+            // Пріоритети: зверху вниз
             TreeSet<Integer> levelsDesc = new TreeSet<>(Comparator.reverseOrder());
             levelsDesc.addAll(prioValues);
 
             Element available = null;
-            Element fallbackLowest = null;
+            Element dropTarget = null;
+            Element lastBlockCandidate = null;
 
             outer:
             for (Integer level : levelsDesc) {
@@ -150,58 +157,71 @@ public class Process extends Element {
                     Element e = prioElements.get(i);
                     if (e == null) continue;
 
-                    // останній переглянутий — це "резерв" найнижчого пріоритету
-                    fallbackLowest = e;
+                    boolean isBlock = prioBlockOnFull.get(i);
 
                     if (e.canAccept()) {
                         available = e;
-                        break outer;
+                        break outer; // знайшли доступного
+                    } else {
+                        if (!isBlock) {
+                            // DROP-маршрут і ціль переповнена → одразу фіксуємо відмову на цій цілі
+                            dropTarget = e;
+                            break outer;
+                        } else {
+                            // BLOCK-маршрут переповнений → йдемо далі, запам'ятовуємо останнього блочного кандидата
+                            lastBlockCandidate = e;
+                        }
                     }
                 }
             }
 
             if (available != null) {
                 target = available;
+                policyBlock = true; // значення неважливе, бо ціль доступна
                 routeAvailable = true;
+            } else if (dropTarget != null) {
+                target = dropTarget;
+                policyBlock = false; // виконаємо DROP
+                routeAvailable = false;
             } else {
-                target = fallbackLowest;  // усі забиті — атрибуція піде у найнижчий пріоритет
+                // Всі були BLOCK і всі переповнені → блокуємось на останньому (найнижчому) пріоритеті
+                target = lastBlockCandidate;
+                policyBlock = true;
                 routeAvailable = false;
             }
 
         } else if (useProbRouting && !nextElements.isEmpty()) {
-            target = chooseNextProbability();
+            // Ймовірнісний вибір однієї гілки
+            int chosenIdx = chooseProbabilityIndex();
+            target = nextElements.get(chosenIdx);
+            policyBlock = nextBlockOnFull.get(chosenIdx);
             routeAvailable = target != null && target.canAccept();
+
         } else {
+            // Single nextElement (сумісність)
             target = getNextElement();
+            policyBlock = defaultRouteBlockOnFull;
             routeAvailable = target != null && target.canAccept();
         }
 
         if (routeAvailable && target != null) {
-            // передаємо далі і звільняємо сервер
+            // Передаємо далі
             finishTimes[idx] = Double.MAX_VALUE;
             busy--;
             target.inAct();
             while (queue > 0 && busy < servers) { queue--; startServiceNow(); }
         } else {
-            // маршрут недоступний
-            if (blockOnFull) {
-                // БЛОКУВАННЯ: тримаємо клієнта на сервері (ціль має бути не null)
+            // Ціль недоступна → діємо за політикою маршруту
+            if (policyBlock) {
+                // Блокування на конкретній цілі
                 blocked[idx] = true;
-                blockedTarget[idx] = (target != null ? target : getNextElement());
-                if (blockedTarget[idx] == null) {
-                    // перестраховка: якщо таки нема цілі — трактуємо як SINK
-                    blocked[idx] = false;
-                    finishTimes[idx] = Double.MAX_VALUE;
-                    busy--;
-                    while (queue > 0 && busy < servers) { queue--; startServiceNow(); }
-                } else {
-                    finishTimes[idx] = Double.MAX_VALUE;
-                    blockCount++;
-                }
+                blockedTarget[idx] = target;
+                finishTimes[idx] = Double.MAX_VALUE; // сервер зайнятий, але завершення не планується
+                blockCount++;
             } else {
-                // DROP: джерело фіксує свої втрати, а ЦІЛІ зараховується відмова через onDropFrom
+                // DROP: атрибуція відмови у target
                 routeLoss++;
-                if (target != null) target.onDropFrom(this);
+                if (target != null) target.onDropFrom(this); // у цілі => failure++
                 finishTimes[idx] = Double.MAX_VALUE;
                 busy--;
                 while (queue > 0 && busy < servers) { queue--; startServiceNow(); }
@@ -209,6 +229,19 @@ public class Process extends Element {
         }
 
         updateAggregateStateFromServers();
+    }
+
+    private int chooseProbabilityIndex() {
+        double sum = 0.0;
+        for (double p : nextProbs) sum += p;
+        if (Math.abs(sum - 1.0) > 1e-9) throw new IllegalStateException("Sum of routing probabilities must be 1.0");
+
+        double r = Math.random(), acc = 0.0;
+        for (int i = 0; i < nextElements.size() - 1; i++) {
+            acc += nextProbs.get(i);
+            if (r < acc) return i;
+        }
+        return nextElements.size() - 1;
     }
 
     private void startServiceNow() {
@@ -242,14 +275,7 @@ public class Process extends Element {
         return idx;
     }
 
-    // -------------------- АТРИБУЦІЯ DROP ДО ЦІЛІ --------------------
-    @Override
-    public void onDropFrom(Element from) {
-        // як у минулій лабі — це відмова ЦІЛІ
-        failure++;
-    }
-
-    // -------------------- РОЗБЛОКУВАННЯ --------------------
+    // -------------------- Розблокування --------------------
     @Override
     public boolean tryUnblock() {
         boolean progressed = false;
@@ -270,7 +296,7 @@ public class Process extends Element {
         return progressed;
     }
 
-    // -------------------- СТАТИСТИКА --------------------
+    // -------------------- Статистика --------------------
     @Override
     public void doStatistics(double delta) {
         meanQueue  += queue * delta;
@@ -293,10 +319,10 @@ public class Process extends Element {
                 ", failure(in/target) = " + failure +
                 ", blockedServers = " + countBlockedServers() +
                 ", routeLoss(out/source) = " + routeLoss +
-                ", policy.blockOnFull = " + blockOnFull);
+                ", defaultRouteBlockOnFull = " + defaultRouteBlockOnFull);
     }
 
-    // Getters
+    // Getters/Setters
     public int getFailure() { return failure; }
     public int getQueue() { return queue; }
     public int getMaxqueue() { return maxqueue; }
@@ -314,5 +340,11 @@ public class Process extends Element {
     @Override
     public boolean canAccept() {
         return (busy < servers) || (queue < maxqueue);
+    }
+
+    @Override
+    public void onDropFrom(Element from) {
+        // Відмова на вході в цей процес, коли джерело змушене було дропнути клієнта
+        failure++;
     }
 }
