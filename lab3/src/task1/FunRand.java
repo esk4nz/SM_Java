@@ -21,11 +21,12 @@ public class FunRand {
         return a;
     }
 
-    public static double Norm(double timeMean, double
-            timeDeviation) {
-        double a;
+    public static double Norm(double timeMean, double timeDeviation) {
         Random r = new Random();
-        a = timeMean + timeDeviation * r.nextGaussian();
+        double a;
+        do {
+            a = timeMean + timeDeviation * r.nextGaussian();
+        } while (a <= 0.0);
         return a;
     }
 }
