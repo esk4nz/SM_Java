@@ -17,8 +17,8 @@ public class Process extends Element {
     private final Deque<Patient> queue = new ArrayDeque<>();
 
     private final Function<Patient, Double> timeFn;
-    private BiConsumer<Process, Patient> onCompleteHook; // опційно
-    private java.util.function.Consumer<Patient> onExit; // опційно
+    private BiConsumer<Process, Patient> onCompleteHook;
+    private java.util.function.Consumer<Patient> onExit;
 
     private Process nextT1, nextT2, nextT3;
     private boolean changeT2toT1OnComplete = false;
