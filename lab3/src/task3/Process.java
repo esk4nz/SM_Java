@@ -139,7 +139,7 @@ public class Process extends Element {
     public void setNextT1(Process n) { this.nextT1 = n; }
     public void setNextT2(Process n) { this.nextT2 = n; }
     public void setNextT3(Process n) { this.nextT3 = n; }
-    public void setChangeT2toT1OnComplete(boolean v) { this.changeT2toT1OnComplete = v; }
+    public void setChangeT2toT1OnComplete(boolean f) { this.changeT2toT1OnComplete = f; }
 
     public double getAreaQueue() { return areaQueue; }
     public double getAreaBusy()  { return areaBusy; }
